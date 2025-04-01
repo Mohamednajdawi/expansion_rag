@@ -1,0 +1,28 @@
+[project]
+name = "api"
+version = "0.1.0"
+description = "Simple RAG API with OpenAI and FAISS"
+readme = "README.md"
+authors = [
+    { name = "mohammad.alnajdawi", email = "mohammad.alnajdawi@teamviewer.com" }
+]
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.109.0",
+    "uvicorn>=0.25.0",
+    "openai>=1.6.0",
+    "python-dotenv>=1.0.0",
+    "faiss-cpu>=1.7.4",
+    "pydantic>=2.5.0",
+    "tiktoken>=0.5.2",
+    "numpy>=1.26.0",
+    "python-multipart>=0.0.6",
+    "pdfplumber>=0.11.6",
+]
+
+[project.scripts]
+api = "api:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
