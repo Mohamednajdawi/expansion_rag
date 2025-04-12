@@ -62,9 +62,27 @@ def process_pdf_with_retry(document_path: Path, max_retries: int = 3) -> Optiona
                         # Add a small delay between pages to avoid potential issues
                         if page_num > 1:
                             time.sleep(0.1)
+                        
+                        # First try normal text extraction
+                        text = page.extract_text(x_tolerance=3, y_tolerance=3)
+                        
+                        # If no text found, try with more permissive tolerances
+                        if not text or len(text.strip()) == 0:
+                            text = page.extract_text(x_tolerance=5, y_tolerance=8)
                             
-                        text = page.extract_text()
+                        # If still no text, try to extract tables and convert to text
+                        if not text or len(text.strip()) == 0:
+                            tables = page.extract_tables()
+                            if tables:
+                                table_texts = []
+                                for table in tables:
+                                    table_text = "\n".join([" | ".join([str(cell) if cell else "" for cell in row]) for row in table])
+                                    table_texts.append(table_text)
+                                text = "\n\n".join(table_texts)
+                        
                         if text:
+                            # Clean up the text - remove excessive whitespace and normalize line breaks
+                            text = " ".join([line.strip() for line in text.splitlines() if line.strip()])
                             text_parts.append(text)
                             logger.info(f"Successfully extracted text from page {page_num}/{total_pages}")
                         else:
@@ -81,7 +99,7 @@ def process_pdf_with_retry(document_path: Path, max_retries: int = 3) -> Optiona
                     else:
                         raise ValueError("No text could be extracted from any page after all attempts")
                 
-                content = "\n".join(text_parts)
+                content = "\n\n".join(text_parts)
                 logger.info(f"Successfully extracted {len(text_parts)} pages of text from {document_path}")
                 return content
                 
