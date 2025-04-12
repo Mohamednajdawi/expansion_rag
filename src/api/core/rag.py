@@ -96,7 +96,8 @@ def generate_answer(
     conversation_history: Optional[str] = None,
     top_k: int = 3,
     model: str = COMPLETION_MODEL,
-    temperature: float = 0.0
+    temperature: float = 0.0,
+    meta_information: Optional[str] = None
 ) -> Dict[str, Any]:
     """Generate an answer using RAG."""
     try:
@@ -124,9 +125,12 @@ def generate_answer(
         system_prompt = """You are a helpful AI assistant. Use the provided context to answer the user's question.
 If you don't find the answer in the context, say so. Don't make up information.
 Base your answer solely on the provided context."""
+
+        # Add meta information if available
+        if meta_information and meta_information.strip():
+            system_prompt += f"\n\nAdditional context from the user:\n{meta_information}"
         
         # Add conversation history if available
-        print(conversation_history)
         if conversation_history:
             system_prompt += f"\n\nPrevious conversation:\n{conversation_history}\n\nPlease consider the previous conversation when answering the current question."
         

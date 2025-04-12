@@ -32,7 +32,8 @@ async def process_chat(request: ChatRequest):
             conversation_history=conversation_history,
             top_k=request.top_k,
             model=request.model,
-            temperature=request.temperature
+            temperature=request.temperature,
+            meta_information=request.meta_information
         )
         
         # Create the assistant message

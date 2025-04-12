@@ -48,6 +48,7 @@ class ChatRequest(BaseModel):
     top_k: Optional[int] = 3
     model: Optional[str] = "gpt-4-mini"
     temperature: Optional[float] = 0.0
+    meta_information: Optional[str] = None
 
 
 class ChatResponse(BaseModel):
