@@ -3,6 +3,8 @@ import os
 from typing import Dict, List, Optional, Any
 from openai import OpenAI
 from dotenv import load_dotenv
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from .embeddings import search_embeddings, search_all_documents
 
 # Load environment variables
@@ -85,69 +87,74 @@ def deduplicate_chunks(chunks: List[Dict]) -> List[Dict]:
     
     return list(unique_chunks.values())
 
+def search_with_query(q: str, top_k: int) -> List[Dict]:
+    """Helper function to search documents with a query."""
+    return search_all_documents(q, top_k)
+
 def generate_answer(
     query: str,
+    conversation_history: Optional[str] = None,
     top_k: int = 3,
     model: str = COMPLETION_MODEL,
     temperature: float = 0.0
 ) -> Dict[str, Any]:
-    """Generate an answer based on retrieved context using query expansion."""
-    # Step 1: Expand the original query
-    expanded_queries = expand_query(query)
-
-    all_queries = [query] + expanded_queries
-    
-    # Step 2: Search for relevant chunks using all queries
-    all_chunks = []
-    for q in all_queries:
-        chunks = search_all_documents(q, top_k)
-        all_chunks.extend(chunks)
-    
-    # Step 3: Deduplicate chunks
-    unique_chunks = deduplicate_chunks(all_chunks)
-    
-    if not unique_chunks:
-        return {
-            "answer": "No relevant information found in any of the documents.",
-            "chunks": [],
-            "expanded_queries": expanded_queries,
-            "success": False
-        }
-    
-    # Step 4: Format context from unique chunks
-    context = format_context(unique_chunks)
-    
-    # Step 5: Create the prompt with context and original query
-    messages = [
-        {"role": "system", "content": (
-            "You are a helpful assistant that answers questions based on the provided context. "
-            "If the answer cannot be found in the context, say that you don't know based on the available information. "
-            "Don't make up information that isn't supported by the context."
-        )},
-        {"role": "user", "content": f"Context:\n{context}\n\nQuestion: {query}"}
-    ]
-    
-    # Step 6: Generate the answer
+    """Generate an answer using RAG."""
     try:
+        # First, expand the query to improve retrieval
+        expanded_queries = expand_query(query)
+        
+        # Search for relevant chunks across all documents
+        all_chunks = []
+        for expanded_query in expanded_queries:
+            chunks = search_all_documents(expanded_query, top_k)
+            all_chunks.extend(chunks)
+        
+        # Remove duplicates and sort by score
+        unique_chunks = []
+        seen_texts = set()
+        for chunk in sorted(all_chunks, key=lambda x: x["score"]):
+            if chunk["text"] not in seen_texts:
+                unique_chunks.append(chunk)
+                seen_texts.add(chunk["text"])
+        
+        # Format context from chunks
+        context = format_context(unique_chunks[:top_k])
+        
+        # Build the prompt
+        system_prompt = """You are a helpful AI assistant. Use the provided context to answer the user's question.
+If you don't find the answer in the context, say so. Don't make up information.
+Base your answer solely on the provided context."""
+        
+        # Add conversation history if available
+        print(conversation_history)
+        if conversation_history:
+            system_prompt += f"\n\nPrevious conversation:\n{conversation_history}\n\nPlease consider the previous conversation when answering the current question."
+        
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "system", "content": f"Context:\n{context}"},
+            {"role": "user", "content": query}
+        ]
+        
+        # Generate response
         response = client.chat.completions.create(
             model=model,
             messages=messages,
             temperature=temperature
         )
         
-        answer = response.choices[0].message.content.strip()
-        
         return {
-            "answer": answer,
-            "chunks": unique_chunks,
+            "answer": response.choices[0].message.content,
+            "chunks": unique_chunks[:top_k],
             "expanded_queries": expanded_queries,
             "success": True
         }
-    
+        
     except Exception as e:
+        print(f"Error generating answer: {e}")
         return {
-            "answer": f"Error generating answer: {str(e)}",
-            "chunks": unique_chunks,
-            "expanded_queries": expanded_queries,
+            "answer": "I apologize, but I encountered an error while processing your request.",
+            "chunks": [],
+            "expanded_queries": [],
             "success": False
         } 

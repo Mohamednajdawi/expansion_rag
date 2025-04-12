@@ -1,6 +1,7 @@
 """Pydantic models for RAG API."""
 from typing import Dict, List, Optional, Any
 from pydantic import BaseModel, Field
+from datetime import datetime
 
 
 class DocumentResponse(BaseModel):
@@ -19,6 +20,18 @@ class TextDocumentRequest(BaseModel):
     metadata: Optional[Dict[str, Any]] = Field(None, description="Optional metadata")
 
 
+class FileListResponse(BaseModel):
+    """Response containing list of files."""
+    files: List[str] = Field(..., description="List of file names")
+    total_files: int = Field(..., description="Total number of files")
+
+
+class Message(BaseModel):
+    """A chat message."""
+    role: str  # "user" or "assistant"
+    content: str
+
+
 class ChunkResponse(BaseModel):
     """Response model for a retrieved text chunk."""
     document_id: str
@@ -26,6 +39,23 @@ class ChunkResponse(BaseModel):
     text: str
     score: float
     metadata: Dict[str, Any] = Field(default_factory=dict)
+
+
+class ChatRequest(BaseModel):
+    """A chat request with optional conversation history."""
+    message: str
+    history: Optional[List[Message]] = None
+    top_k: Optional[int] = 3
+    model: Optional[str] = "gpt-4-mini"
+    temperature: Optional[float] = 0.0
+
+
+class ChatResponse(BaseModel):
+    """A chat response with additional context."""
+    message: Message
+    chunks: List[ChunkResponse]
+    expanded_queries: List[str]
+    success: bool
 
 
 class QARequest(BaseModel):

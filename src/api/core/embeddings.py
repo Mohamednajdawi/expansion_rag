@@ -59,6 +59,7 @@ def create_document_embeddings(
     # Create directory if it doesn't exist
     EMBEDDINGS_DIR.mkdir(parents=True, exist_ok=True)
     
+    # Always use the document_id for file naming, but store original filename in metadata
     # Split text into chunks
     chunks = chunk_text(text)
     

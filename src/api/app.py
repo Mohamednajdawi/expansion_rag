@@ -14,7 +14,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
-from .routers import documents, qa
+from .routers import documents, qa, chat
 
 
 @asynccontextmanager
@@ -46,6 +46,7 @@ app.add_middleware(
 # Include routers
 app.include_router(documents.router)
 app.include_router(qa.router)
+app.include_router(chat.router)
 
 
 @app.get("/health")

@@ -1,14 +1,57 @@
 """Document handling routes."""
 import os
+import json
 from typing import List
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Depends
 from fastapi.responses import JSONResponse
+from pathlib import Path
 
-from ..models import DocumentResponse, TextDocumentRequest
+from ..models import DocumentResponse, TextDocumentRequest, FileListResponse
 from ..core.document_processor import process_text_document, save_uploaded_file, get_document_content
 from ..core.embeddings import create_document_embeddings, verify_document_embeddings, process_missing_embeddings
 
 router = APIRouter(prefix="/documents", tags=["documents"])
+
+
+@router.get("/files", response_model=FileListResponse)
+async def get_all_files():
+    """Get list of all files in the embeddings directory."""
+    try:
+        embeddings_dir = Path(os.getenv("EMBEDDINGS_DIR", "./data/embeddings"))
+        if not embeddings_dir.exists():
+            return FileListResponse(files=[], total_files=0)
+        
+        # Get all .json files and read their metadata to get original filenames
+        files = []
+        seen_files = set()  # Track unique files by document_id
+        
+        for metadata_file in embeddings_dir.glob("*.json"):
+            try:
+                with open(metadata_file, "r") as f:
+                    metadata = json.load(f)
+                    document_id = metadata.get("document_id")
+                    
+                    # Skip if we've already seen this document
+                    if document_id in seen_files:
+                        continue
+                    
+                    # Add to seen files
+                    seen_files.add(document_id)
+                    
+                    # Get filename from metadata, fallback to document_id if not found
+                    filename = (metadata.get("metadata", {}).get("filename") or 
+                              f"{document_id}{metadata.get('metadata', {}).get('file_type', '')}")
+                    files.append(filename)
+            except:
+                # If metadata can't be read, use the stem as fallback
+                files.append(metadata_file.stem)
+        
+        return FileListResponse(
+            files=files,
+            total_files=len(files)
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting file list: {str(e)}")
 
 
 @router.get("/embedding-status")
