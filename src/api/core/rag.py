@@ -19,9 +19,9 @@ if not api_key:
 client = OpenAI(api_key=api_key)
 
 # Default model for completions
-COMPLETION_MODEL = "gpt-4o-mini"
+COMPLETION_MODEL = "gpt-4.1-mini-2025-04-14"
 # Model for query expansion (can use a smaller/faster model)
-EXPANSION_MODEL = "gpt-4o-mini"
+EXPANSION_MODEL = "gpt-4.1-mini-2025-04-14"
 
 def format_context(chunks: List[Dict]) -> str:
     """Format retrieved chunks into a context string."""

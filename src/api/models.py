@@ -46,7 +46,7 @@ class ChatRequest(BaseModel):
     message: str
     history: Optional[List[Message]] = None
     top_k: Optional[int] = 3
-    model: Optional[str] = "gpt-4-mini"
+    model: Optional[str] = "gpt-4.1-mini-2025-04-14"
     temperature: Optional[float] = 0.0
     meta_information: Optional[str] = None
 
@@ -63,7 +63,7 @@ class QARequest(BaseModel):
     """Request for question answering."""
     query: str = Field(..., description="The question to answer")
     top_k: Optional[int] = Field(3, description="Number of chunks to retrieve")
-    model: Optional[str] = Field("gpt-4o-mini", description="OpenAI model to use for generation")
+    model: Optional[str] = Field("gpt-4.1-mini-2025-04-14", description="OpenAI model to use for generation")
     temperature: Optional[float] = Field(0.0, description="Sampling temperature")
 
 
