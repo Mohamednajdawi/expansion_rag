@@ -127,6 +127,7 @@ def generate_answer(
         
         # Build the prompt
         system_prompt = """You are a helpful AI assistant. Use the provided context to answer the user's question.
+                            make your response direct and concise.
                             If you don't find the answer in the context, say so. Don't make up information.
                             Base your answer solely on the provided context.
                             include the source or references, along with the section number"""
