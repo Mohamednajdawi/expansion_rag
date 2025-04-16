@@ -30,7 +30,9 @@ def format_context(chunks: List[Dict]) -> str:
     
     formatted_chunks = []
     for i, chunk in enumerate(chunks):
-        formatted_chunks.append(f"[Chunk {i+1}]\n{chunk['text']}\n")
+        metadata = chunk.get('metadata', 'Unknown source')
+        source = metadata.get('filename', 'Unknown source')
+        formatted_chunks.append(f"[Chunk {i+1} - Source: {source}]\n{chunk['text']}\n")
     
     return "\n".join(formatted_chunks)
 
@@ -43,7 +45,8 @@ def expand_query(query: str, num_expansions: int = 3) -> List[str]:
                 "versions of the user's query that might retrieve additional relevant information. "
                 "Generate semantically different but related queries that explore different aspects "
                 "or phrasings of the same information need. Return ONLY a numbered list of queries, "
-                "no explanations or other text."
+                "no explanations or other text. "
+                "all in German language"
             )},
             {"role": "user", "content": f"Original query: '{query}'\n\nGenerate {num_expansions} alternative queries."}
         ]
@@ -120,11 +123,13 @@ def generate_answer(
         
         # Format context from chunks
         context = format_context(unique_chunks[:top_k])
+        print(context)
         
         # Build the prompt
         system_prompt = """You are a helpful AI assistant. Use the provided context to answer the user's question.
-If you don't find the answer in the context, say so. Don't make up information.
-Base your answer solely on the provided context."""
+                            If you don't find the answer in the context, say so. Don't make up information.
+                            Base your answer solely on the provided context.
+                            include the source or references, along with the section number"""
 
         # Add meta information if available
         if meta_information and meta_information.strip():
@@ -151,6 +156,7 @@ Base your answer solely on the provided context."""
             "answer": response.choices[0].message.content,
             "chunks": unique_chunks[:top_k],
             "expanded_queries": expanded_queries,
+            "sources": [chunk.get('source', 'Unknown source') for chunk in unique_chunks[:top_k]],
             "success": True
         }
         
@@ -160,5 +166,7 @@ Base your answer solely on the provided context."""
             "answer": "I apologize, but I encountered an error while processing your request.",
             "chunks": [],
             "expanded_queries": [],
+            "sources": [],
             "success": False
         } 
+
