@@ -4,9 +4,10 @@ import uuid
 from typing import Dict, Optional, BinaryIO
 from pathlib import Path
 import shutil
-import pdfplumber
 import logging
 import time
+from docling.document_converter import DocumentConverter
+os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -46,65 +47,33 @@ def process_text_document(
     }
 
 def process_pdf_with_retry(document_path: Path, max_retries: int = 3) -> Optional[str]:
-    """Process a PDF file with retries."""
+    """Process a PDF file with retries using docling."""
     for attempt in range(max_retries):
         try:
-            with pdfplumber.open(document_path) as pdf:
-                logger.info(f"Processing PDF: {document_path} (attempt {attempt + 1}/{max_retries})")
-                text_parts = []
-                
-                # Get total pages
-                total_pages = len(pdf.pages)
-                logger.info(f"PDF has {total_pages} pages")
-                
-                for page_num, page in enumerate(pdf.pages, 1):
-                    try:
-                        # Add a small delay between pages to avoid potential issues
-                        if page_num > 1:
-                            time.sleep(0.1)
-                        
-                        # First try normal text extraction
-                        text = page.extract_text(x_tolerance=3, y_tolerance=3)
-                        
-                        # If no text found, try with more permissive tolerances
-                        if not text or len(text.strip()) == 0:
-                            text = page.extract_text(x_tolerance=5, y_tolerance=8)
-                            
-                        # If still no text, try to extract tables and convert to text
-                        if not text or len(text.strip()) == 0:
-                            tables = page.extract_tables()
-                            if tables:
-                                table_texts = []
-                                for table in tables:
-                                    table_text = "\n".join([" | ".join([str(cell) if cell else "" for cell in row]) for row in table])
-                                    table_texts.append(table_text)
-                                text = "\n\n".join(table_texts)
-                        
-                        if text:
-                            # Clean up the text - remove excessive whitespace and normalize line breaks
-                            text = " ".join([line.strip() for line in text.splitlines() if line.strip()])
-                            text_parts.append(text)
-                            logger.info(f"Successfully extracted text from page {page_num}/{total_pages}")
-                        else:
-                            logger.warning(f"No text extracted from page {page_num}/{total_pages}")
-                    except Exception as page_error:
-                        logger.error(f"Error extracting text from page {page_num}/{total_pages}: {str(page_error)}")
-                        continue
-                
-                if not text_parts:
-                    if attempt < max_retries - 1:
-                        logger.warning(f"No text extracted in attempt {attempt + 1}, retrying...")
-                        time.sleep(1)  # Wait before retrying
-                        continue
-                    else:
-                        raise ValueError("No text could be extracted from any page after all attempts")
-                
-                content = "\n\n".join(text_parts)
-                logger.info(f"Successfully extracted {len(text_parts)} pages of text from {document_path}")
-                return content
+            logger.info(f"Processing PDF with docling: {document_path} (attempt {attempt + 1}/{max_retries})")
+            
+            # Initialize the docling DocumentConverter
+            converter = DocumentConverter()
+            
+            # Convert the document
+            result = converter.convert(str(document_path))
+            
+            # Export to markdown
+            content = result.document.export_to_markdown()
+            
+            if not content or len(content.strip()) == 0:
+                if attempt < max_retries - 1:
+                    logger.warning(f"No text extracted in attempt {attempt + 1}, retrying...")
+                    time.sleep(1)  # Wait before retrying
+                    continue
+                else:
+                    raise ValueError("No text could be extracted after all attempts")
+            
+            logger.info(f"Successfully extracted text from {document_path} using docling")
+            return content
                 
         except Exception as e:
-            logger.error(f"Error processing PDF {document_path} (attempt {attempt + 1}/{max_retries}): {str(e)}")
+            logger.error(f"Error processing PDF {document_path} with docling (attempt {attempt + 1}/{max_retries}): {str(e)}")
             if attempt < max_retries - 1:
                 time.sleep(1)  # Wait before retrying
                 continue
